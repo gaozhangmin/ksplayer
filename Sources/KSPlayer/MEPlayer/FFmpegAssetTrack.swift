@@ -23,7 +23,7 @@ public class FFmpegAssetTrack: MediaPlayerTrack {
     public let bitDepth: Int32
     private var stream: UnsafeMutablePointer<AVStream>?
     var startTime = CMTime.zero
-    var codecpar: AVCodecParameters
+    public var codecpar: AVCodecParameters
     var timebase: Timebase = .defaultValue
     let bitsPerRawSample: Int32
     // audio

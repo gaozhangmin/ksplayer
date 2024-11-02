@@ -284,7 +284,7 @@ open class SubtitleModel: ObservableObject {
     }
 
     public static var textFontSize = SubtitleModel.Size.standard.rawValue
-    public static var textBold = false
+    public static var textBold = true
     public static var textItalic = false
     public static var textPosition = TextPosition()
     public static var audioRecognizes = [any AudioRecognize]()
@@ -346,8 +346,11 @@ open class SubtitleModel: ObservableObject {
         if newParts != parts {
             for part in newParts {
                 if let text = part.text as? NSMutableAttributedString {
-                    text.addAttributes([.font: SubtitleModel.textFont],
-                                       range: NSRange(location: 0, length: text.length))
+                    let fullRange = NSRange(location: 0, length: text.length)
+
+                    text.removeAttribute(.obliqueness, range: fullRange)
+                    text.removeAttribute(.font, range: fullRange)
+                    text.addAttributes([.font: SubtitleModel.textFont], range: fullRange)
                 }
             }
             parts = newParts

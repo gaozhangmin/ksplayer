@@ -662,7 +662,13 @@ extension KSPlayerLayer {
     @objc private func enterForeground() {
         if KSOptions.canBackgroundPlay {
             player.enterForeground()
+            if KSOptions.playOnForeground {
+                play()
+            }
+            
         }
+        
+        
     }
 
     #if canImport(UIKit) && !os(xrOS)

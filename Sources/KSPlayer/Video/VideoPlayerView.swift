@@ -894,6 +894,8 @@ public extension KSOptions {
     /// 播放内核选择策略 先使用firstPlayer，失败了自动切换到secondPlayer，播放内核有KSAVPlayer、KSMEPlayer两个选项
     /// 是否能后台播放视频
     static var canBackgroundPlay = false
+    
+    static var playOnForeground = false
 }
 
 extension UIView {
