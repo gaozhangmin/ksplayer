@@ -660,14 +660,23 @@ extension KSPlayerLayer {
     }
 
     @objc private func enterForeground() {
-        if KSOptions.canBackgroundPlay {
-            player.enterForeground()
-            if KSOptions.playOnForeground {
-                play()
+        player.enterForeground()
+        if KSOptions.playOnForeground {
+            if state.isPlaying {
+                
+                
+                
+                
+                
+                return
+            }
+            play()
+        } else {
+            if state.isPlaying {
+                pause()
             }
             
         }
-        
         
     }
 
