@@ -663,11 +663,6 @@ extension KSPlayerLayer {
         player.enterForeground()
         if KSOptions.playOnForeground {
             if state.isPlaying {
-                
-                
-                
-                
-                
                 return
             }
             play()
