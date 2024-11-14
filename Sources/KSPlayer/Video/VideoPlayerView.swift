@@ -79,7 +79,7 @@ open class VideoPlayerView: PlayerView {
     public var subtitleLabel = UILabel()
     public var subtitleBackView = UIImageView()
     /// Activty Indector for loading
-    public var loadingIndector: UIView & LoadingIndector = XVideoLoadingIndicatorView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
+    public var loadingIndector: UIView & LoadingIndector = UIActivityIndicatorView(style: .medium)
     public var seekToView: UIView & SeekViewProtocol = SeekView()
     public var replayButton = UIButton()
     public var lockButton = UIButton()
@@ -175,7 +175,8 @@ open class VideoPlayerView: PlayerView {
         topMaskView.gradientLayer.endPoint = CGPoint(x: 0, y: 1)
         bottomMaskView.gradientLayer.startPoint = CGPoint(x: 0, y: 1)
         bottomMaskView.gradientLayer.endPoint = .zero
-
+        loadingIndector.frame = CGRect(x: 0, y: 0, width: 30, height: 30)
+        loadingIndector.transform = CGAffineTransform(scaleX: 2.0, y: 2.0)
         loadingIndector.isHidden = true
         controllerView.addSubview(loadingIndector)
         // Top views
