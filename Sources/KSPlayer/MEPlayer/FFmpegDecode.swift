@@ -188,7 +188,9 @@ class FFmpegDecode: DecodeProtocol {
     func doFlushCodec() {
         bestEffortTimestamp = Int64(0)
         // seek之后要清空下，不然解码可能还会有缓存，导致返回的数据是之前seek的。
-        avcodec_flush_buffers(codecContext)
+        if codecContext != nil {
+            avcodec_flush_buffers(codecContext)
+        }
     }
 
     func shutdown() {
