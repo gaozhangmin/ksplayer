@@ -79,7 +79,7 @@ open class VideoPlayerView: PlayerView {
     public var subtitleLabel = UILabel()
     public var subtitleBackView = UIImageView()
     /// Activty Indector for loading
-    public var loadingIndector: UIView & LoadingIndector = UIActivityIndicatorView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
+    public var loadingIndector: UIView & LoadingIndector = XVideoLoadingIndicatorView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
     public var seekToView: UIView & SeekViewProtocol = SeekView()
     public var replayButton = UIButton()
     public var lockButton = UIButton()
