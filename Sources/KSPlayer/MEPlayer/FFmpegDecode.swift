@@ -64,74 +64,37 @@ class FFmpegDecode: DecodeProtocol {
                 // filter之后，side_data信息会丢失，所以放在这里
                 if inputFrame.pointee.nb_side_data > 0 {
                     for i in 0 ..< inputFrame.pointee.nb_side_data {
-                        if let sideData = inputFrame.pointee.side_data[Int(i)]?.pointee {
-                            if sideData.type == AV_FRAME_DATA_A53_CC {
-                                if let closedCaptionsTrack = packet.assetTrack.closedCaptionsTrack,
-                                   let subtitle = closedCaptionsTrack.subtitle
-                                {
-                                    let closedCaptionsPacket = Packet()
-                                    if let corePacket = packet.corePacket {
-                                        closedCaptionsPacket.corePacket?.pointee.pts = corePacket.pointee.pts
-                                        closedCaptionsPacket.corePacket?.pointee.dts = corePacket.pointee.dts
-                                        closedCaptionsPacket.corePacket?.pointee.pos = corePacket.pointee.pos
-                                        closedCaptionsPacket.corePacket?.pointee.time_base = corePacket.pointee.time_base
-                                        closedCaptionsPacket.corePacket?.pointee.stream_index = corePacket.pointee.stream_index
-                                    }
-                                    closedCaptionsPacket.corePacket?.pointee.flags |= AV_PKT_FLAG_KEY
-                                    closedCaptionsPacket.corePacket?.pointee.size = Int32(sideData.size)
-                                    let buffer = av_buffer_ref(sideData.buf)
-                                    closedCaptionsPacket.corePacket?.pointee.data = buffer?.pointee.data
-                                    closedCaptionsPacket.corePacket?.pointee.buf = buffer
-                                    closedCaptionsPacket.assetTrack = closedCaptionsTrack
-                                    subtitle.putPacket(packet: closedCaptionsPacket)
+                        do {
+                            if let sideData = inputFrame.pointee.side_data[Int(i)]?.pointee {
+                                if sideData.type == AV_FRAME_DATA_A53_CC {
+                                    try handleClosedCaptionData(for: sideData, with: packet)
+                                } else if sideData.type == AV_FRAME_DATA_SEI_UNREGISTERED {
+                                    try handleSEIUnregisteredData(for: sideData, with: options)
+                                } else if sideData.type == AV_FRAME_DATA_DOVI_RPU_BUFFER {
+                                    let data = sideData.data.withMemoryRebound(to: [UInt8].self, capacity: 1) { $0 }
+                                } else if sideData.type == AV_FRAME_DATA_DOVI_METADATA { // AVDOVIMetadata
+                                    let data = sideData.data.withMemoryRebound(to: AVDOVIMetadata.self, capacity: 1) { $0 }
+                                    let header = av_dovi_get_header(data)
+                                    let mapping = av_dovi_get_mapping(data)
+                                    let color = av_dovi_get_color(data)
+    //                                frame.corePixelBuffer?.transferFunction = kCVImageBufferTransferFunction_ITU_R_2020
+                                } else if sideData.type == AV_FRAME_DATA_DYNAMIC_HDR_PLUS { // AVDynamicHDRPlus
+                                    let data = sideData.data.withMemoryRebound(to: AVDynamicHDRPlus.self, capacity: 1) { $0 }.pointee
+                                } else if sideData.type == AV_FRAME_DATA_DYNAMIC_HDR_VIVID { // AVDynamicHDRVivid
+                                    let data = sideData.data.withMemoryRebound(to: AVDynamicHDRVivid.self, capacity: 1) { $0 }.pointee
+                                } else if sideData.type == AV_FRAME_DATA_MASTERING_DISPLAY_METADATA {
+                                    displayData = try handleMasteringDisplayMetadata(for: sideData)
+                                } else if sideData.type == AV_FRAME_DATA_CONTENT_LIGHT_LEVEL {
+                                    contentData = try handleContentLightMetadata(for: sideData)
+                                } else if sideData.type == AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT {
+                                    ambientViewingEnvironment = try handleAmbientViewingEnvironment(for : sideData)
                                 }
-                            } else if sideData.type == AV_FRAME_DATA_SEI_UNREGISTERED {
-                                let size = sideData.size
-                                if size > AV_UUID_LEN {
-                                    let str = String(cString: sideData.data.advanced(by: Int(AV_UUID_LEN)))
-                                    options.sei(string: str)
-                                }
-                            } else if sideData.type == AV_FRAME_DATA_DOVI_RPU_BUFFER {
-                                let data = sideData.data.withMemoryRebound(to: [UInt8].self, capacity: 1) { $0 }
-                            } else if sideData.type == AV_FRAME_DATA_DOVI_METADATA { // AVDOVIMetadata
-                                let data = sideData.data.withMemoryRebound(to: AVDOVIMetadata.self, capacity: 1) { $0 }
-                                let header = av_dovi_get_header(data)
-                                let mapping = av_dovi_get_mapping(data)
-                                let color = av_dovi_get_color(data)
-//                                frame.corePixelBuffer?.transferFunction = kCVImageBufferTransferFunction_ITU_R_2020
-                            } else if sideData.type == AV_FRAME_DATA_DYNAMIC_HDR_PLUS { // AVDynamicHDRPlus
-                                let data = sideData.data.withMemoryRebound(to: AVDynamicHDRPlus.self, capacity: 1) { $0 }.pointee
-                            } else if sideData.type == AV_FRAME_DATA_DYNAMIC_HDR_VIVID { // AVDynamicHDRVivid
-                                let data = sideData.data.withMemoryRebound(to: AVDynamicHDRVivid.self, capacity: 1) { $0 }.pointee
-                            } else if sideData.type == AV_FRAME_DATA_MASTERING_DISPLAY_METADATA {
-                                let data = sideData.data.withMemoryRebound(to: AVMasteringDisplayMetadata.self, capacity: 1) { $0 }.pointee
-                                displayData = MasteringDisplayMetadata(
-                                    display_primaries_r_x: UInt16(data.display_primaries.0.0.num).bigEndian,
-                                    display_primaries_r_y: UInt16(data.display_primaries.0.1.num).bigEndian,
-                                    display_primaries_g_x: UInt16(data.display_primaries.1.0.num).bigEndian,
-                                    display_primaries_g_y: UInt16(data.display_primaries.1.1.num).bigEndian,
-                                    display_primaries_b_x: UInt16(data.display_primaries.2.1.num).bigEndian,
-                                    display_primaries_b_y: UInt16(data.display_primaries.2.1.num).bigEndian,
-                                    white_point_x: UInt16(data.white_point.0.num).bigEndian,
-                                    white_point_y: UInt16(data.white_point.1.num).bigEndian,
-                                    minLuminance: UInt32(data.min_luminance.num).bigEndian,
-                                    maxLuminance: UInt32(data.max_luminance.num).bigEndian
-                                )
-                            } else if sideData.type == AV_FRAME_DATA_CONTENT_LIGHT_LEVEL {
-                                let data = sideData.data.withMemoryRebound(to: AVContentLightMetadata.self, capacity: 1) { $0 }.pointee
-                                contentData = ContentLightMetadata(
-                                    MaxCLL: UInt16(data.MaxCLL).bigEndian,
-                                    MaxFALL: UInt16(data.MaxFALL).bigEndian
-                                )
-                            } else if sideData.type == AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT {
-                                let data = sideData.data.withMemoryRebound(to: AVAmbientViewingEnvironment.self, capacity: 1) { $0 }.pointee
-                                ambientViewingEnvironment = AmbientViewingEnvironment(
-                                    ambient_illuminance: UInt32(data.ambient_illuminance.num).bigEndian,
-                                    ambient_light_x: UInt16(data.ambient_light_x.num).bigEndian,
-                                    ambient_light_y: UInt16(data.ambient_light_y.num).bigEndian
-                                )
                             }
+                        } catch {
+                            completionHandler(.failure(error))
+                            break
                         }
+                        
                     }
                 }
                 filter.filter(options: options, inputFrame: inputFrame) { avframe in
@@ -183,6 +146,71 @@ class FFmpegDecode: DecodeProtocol {
                 }
             }
         }
+    }
+    
+    func handleClosedCaptionData(for sideData: AVFrameSideData, with packet: Packet) throws {
+        if let closedCaptionsTrack = packet.assetTrack.closedCaptionsTrack,
+           let subtitle = closedCaptionsTrack.subtitle
+        {
+            let closedCaptionsPacket = Packet()
+            if let corePacket = packet.corePacket {
+                closedCaptionsPacket.corePacket?.pointee.pts = corePacket.pointee.pts
+                closedCaptionsPacket.corePacket?.pointee.dts = corePacket.pointee.dts
+                closedCaptionsPacket.corePacket?.pointee.pos = corePacket.pointee.pos
+                closedCaptionsPacket.corePacket?.pointee.time_base = corePacket.pointee.time_base
+                closedCaptionsPacket.corePacket?.pointee.stream_index = corePacket.pointee.stream_index
+            }
+            closedCaptionsPacket.corePacket?.pointee.flags |= AV_PKT_FLAG_KEY
+            closedCaptionsPacket.corePacket?.pointee.size = Int32(sideData.size)
+            let buffer = av_buffer_ref(sideData.buf)
+            closedCaptionsPacket.corePacket?.pointee.data = buffer?.pointee.data
+            closedCaptionsPacket.corePacket?.pointee.buf = buffer
+            closedCaptionsPacket.assetTrack = closedCaptionsTrack
+            subtitle.putPacket(packet: closedCaptionsPacket)
+        }
+        
+    }
+
+    func handleSEIUnregisteredData(for sideData: AVFrameSideData, with options: KSOptions) throws {
+        let size = sideData.size
+        if size > AV_UUID_LEN {
+            let str = String(cString: sideData.data.advanced(by: Int(AV_UUID_LEN)))
+            options.sei(string: str)
+        }
+    }
+
+
+    func handleMasteringDisplayMetadata(for sideData: AVFrameSideData) throws -> MasteringDisplayMetadata {
+        let data = sideData.data.withMemoryRebound(to: AVMasteringDisplayMetadata.self, capacity: 1) { $0 }.pointee
+        return MasteringDisplayMetadata(
+            display_primaries_r_x: UInt32(data.display_primaries.0.0.num).bigEndian,
+            display_primaries_r_y: UInt32(data.display_primaries.0.1.num).bigEndian,
+            display_primaries_g_x: UInt32(data.display_primaries.1.0.num).bigEndian,
+            display_primaries_g_y: UInt32(data.display_primaries.1.1.num).bigEndian,
+            display_primaries_b_x: UInt32(data.display_primaries.2.1.num).bigEndian,
+            display_primaries_b_y: UInt32(data.display_primaries.2.1.num).bigEndian,
+            white_point_x: UInt32(data.white_point.0.num).bigEndian,
+            white_point_y: UInt32(data.white_point.1.num).bigEndian,
+            minLuminance: UInt32(data.min_luminance.num).bigEndian,
+            maxLuminance: UInt32(data.max_luminance.num).bigEndian
+        )
+    }
+
+    func handleContentLightMetadata(for sideData: AVFrameSideData) throws -> ContentLightMetadata {
+        let data = sideData.data.withMemoryRebound(to: AVContentLightMetadata.self, capacity: 1) { $0 }.pointee
+        return  ContentLightMetadata(
+            MaxCLL: UInt32(data.MaxCLL).bigEndian,
+            MaxFALL: UInt32(data.MaxFALL).bigEndian
+        )
+    }
+
+    func handleAmbientViewingEnvironment(for sideData: AVFrameSideData) throws -> AmbientViewingEnvironment {
+        let data = sideData.data.withMemoryRebound(to: AVAmbientViewingEnvironment.self, capacity: 1) { $0 }.pointee
+        return AmbientViewingEnvironment(
+            ambient_illuminance: UInt32(data.ambient_illuminance.num).bigEndian,
+            ambient_light_x: UInt32(data.ambient_light_x.num).bigEndian,
+            ambient_light_y: UInt32(data.ambient_light_y.num).bigEndian
+        )
     }
 
     func doFlushCodec() {

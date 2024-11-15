@@ -468,26 +468,26 @@ public struct EDRMetaData {
 }
 
 public struct MasteringDisplayMetadata {
-    let display_primaries_r_x: UInt16
-    let display_primaries_r_y: UInt16
-    let display_primaries_g_x: UInt16
-    let display_primaries_g_y: UInt16
-    let display_primaries_b_x: UInt16
-    let display_primaries_b_y: UInt16
-    let white_point_x: UInt16
-    let white_point_y: UInt16
+    let display_primaries_r_x: UInt32
+    let display_primaries_r_y: UInt32
+    let display_primaries_g_x: UInt32
+    let display_primaries_g_y: UInt32
+    let display_primaries_b_x: UInt32
+    let display_primaries_b_y: UInt32
+    let white_point_x: UInt32
+    let white_point_y: UInt32
     let minLuminance: UInt32
     let maxLuminance: UInt32
 }
 
 public struct ContentLightMetadata {
-    let MaxCLL: UInt16
-    let MaxFALL: UInt16
+    let MaxCLL: UInt32
+    let MaxFALL: UInt32
 }
 
 // https://developer.apple.com/documentation/technotes/tn3145-hdr-video-metadata
 public struct AmbientViewingEnvironment {
     let ambient_illuminance: UInt32
-    let ambient_light_x: UInt16
-    let ambient_light_y: UInt16
+    let ambient_light_x: UInt32
+    let ambient_light_y: UInt32
 }
